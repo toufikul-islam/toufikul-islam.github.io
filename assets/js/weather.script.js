@@ -4,8 +4,8 @@ fetch('http://ip-api.com/json/')
 .then(data => {
     const lat = data.lat;  // Latitude
     const lon = data.lon;  // Longitude
-    const city = data.city;  // City (for more information)
-    const country = data.country;  // Country
+    const city = 'Rajshahi';  // City (for more information)
+    const country = 'Bangladesh';  // Country
 
     const apiKey = '5ce1a1e639b8f1f46e471e5fd4b569af'; // Replace with your OpenWeather API key
 
