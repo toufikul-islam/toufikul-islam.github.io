@@ -1,1 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>OMR Checker – Batch</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f6f6f3;--card:#fff;--tx:#1c1c1a;--mut:#6b6b66;--bd:#dcdcd5;--ac:#2f5fd0;--ok:#1a8a4a;--no:#d03a3a}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161615;--card:#212120;--tx:#ececE8;--mut:#9b9b94;--bd:#3a3a37;--ac:#6b93f0;--ok:#4cc27c;--no:#f06b6b}}
+:root[data-theme="dark"]{--bg:#161615;--card:#212120;--tx:#ececE8;--mut:#9b9b94;--bd:#3a3a37;--ac:#6b93f0;--ok:#4cc27c;--no:#f06b6b}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:1092px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:0 0 2px}
+p.s{color:var(--mut);margin:0 0 14px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:14px}
+button,.btn{font:inherit;background:var(--ac);color:#fff;border:0;border-radius:8px;padding:8px 14px;cursor:pointer;display:inline-block}
+button.g{background:transparent;color:var(--tx);border:1px solid var(--bd)}
+button:disabled{opacity:.4}
+input[type=text],input[type=number],select,textarea{font:inherit;background:var(--bg);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:6px 8px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.kg{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;margin-top:10px}
+.kq{display:flex;align-items:center;gap:4px;font-size:13px}
+.kq b{width:22px;text-align:right;color:var(--mut);font-weight:500}
+.kq button{padding:3px 0;width:26px;background:transparent;color:var(--tx);border:1px solid var(--bd);font-size:13px}
+.kq button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+canvas{width:100%;height:auto;border-radius:8px;display:block;background:var(--bg)}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{border-bottom:1px solid var(--bd);padding:6px;text-align:left;vertical-align:middle;white-space:nowrap}
+img.cr{height:34px;border-radius:4px;background:#fff;display:block}
+.rg{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px;margin-top:10px}
+.rc{border:1px solid var(--bd);border-radius:8px;padding:5px 8px;font-size:13px}
+.rc.ok{border-color:var(--ok)}.rc.no{border-color:var(--no)}
+.rc small,.mut{color:var(--mut)}.mut{font-size:13px}
+.err{color:var(--no)}
+</style>
+</head>
+<body>
+<main>
+<h1>OMR Checker</h1>
+<p class="s">Upload a scanned PDF (many sheets) or photos. Each page is read and scored one by one.</p>
+
+<div class="card">
+  <div class="row"><b>Answer key – Set</b>
+    <select id="set"><option>A</option><option>B</option><option>C</option><option>D</option></select>
+    <label><b>Questions</b> <input type="number" id="nq" min="1" max="100" style="width:64px"></label>
+    <b>Answer sequence:</b> <input type="text" id="ks" placeholder="Type answers in order, e.g. ABCD or কখগঘ…" size="34" maxlength="100">
+    <button class="g" id="kc">Clear</button></div>
+  <div class="kg" id="kg"></div>
+  <div class="row" style="margin-top:10px">
+    <label>Mark per correct <input type="number" id="mc" value="1" step="0.25" style="width:70px"></label>
+    <label>Penalty per wrong <input type="number" id="mw" value="0" step="0.25" style="width:70px"></label>
+  </div>
+</div>
+
+<div class="card">
+  <div class="row">
+    <label class="btn">Choose PDF / images<input type="file" id="f" accept="application/pdf,image/*" multiple hidden></label>
+    <button class="g" id="clr">Clear all</button>
+    <label class="mut">Strictness (centre = auto) <input type="range" id="th" min="25" max="80" value="50"></label>
+    <label class="mut">ID digits <input type="number" id="idn" min="0" max="20" value="9" placeholder="auto" style="width:64px" title="How many digits an ID has. Set this before loading sheets."></label>
+    <label class="mut" title="Strict marks more digits as uncertain (red) so that nothing wrong slips through"> ID check <select id="ids"><option value="strict">Strict</option><option value="normal" selected>Normal</option></select></label>
+     <button class="g" id="lrn" title="Fix wrong IDs by typing them, then press this: the reader adapts to your handwriting">Learn from my corrections</button>
+    <button class="g" id="lrs">Reset learning</button>
+    <label class="mut" title="Uses the usual digit at each ID position (learned from checked IDs). Turn off if your IDs follow a different pattern."><input type="checkbox" id="usp" checked> usual digit per position</label>
+  </div>
+  <p class="mut" style="margin:8px 0 0">Works with scans that have no corner markers (it finds the bubble grid itself) and with photos that show the 4 corner squares. Keep pages upright.</p>
+  <div id="msg" class="mut"></div>
+</div>
+
+<div class="card" id="rs" hidden>
+  <div class="row"><b id="sum"></b><span style="flex:1"></span><button id="xl">⬇ Export to Excel</button><button id="pdfb">⬇ Download PDF</button></div>
+  <div class="tw"><table><thead><tr><th>#</th><th>ID / Set (from paper)</th><th>ID</th><th>Set</th><th>Result</th><th></th></tr></thead><tbody id="tb"></tbody></table></div>
+  <p class="mut" style="margin:8px 0 0">The handwritten ID is read automatically (digits 0–9). Red box or “?” = not certain: check it against the crop and fix it by typing. Fix a few IDs, press “Learn from my corrections”, and the reader adapts to your handwriting (kept in this browser only). Set “ID digits” (default 9) before loading sheets. The Set is read from the Set bubbles on the sheet. With no bubbles, the handwritten Set letter is read; if that fails, “Auto” picks the set whose key matches best (⚠ = unsure, choose it yourself). Enter keys for every set you use (A–D).</p>
+</div>
+
+<div class="card" id="vw" hidden>
+  <div class="row"><button class="g" id="pv">‹ Prev</button><button class="g" id="nx">Next ›</button><b id="vh"></b></div>
+  <canvas id="cv" style="margin-top:10px"></canvas>
+  <div class="rg" id="rg"></div>
+</div>
+</main>
+
+<script src="app.min.js"></script>
+<div style="position:fixed;right:8px;bottom:6px;font:11px system-ui;color:#888;background:rgba(255,255,255,.85);padding:2px 6px;border-radius:6px;z-index:9">reader v11 (boxed IDs + smooth PDF scaling) · learning key omrdig5</div>
+</body>
+</html>
+
+
+
+
+
+
+
 
